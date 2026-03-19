@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIE_YOUNG_01 | RE-ACTIVATED SYSTEM</title>
+    <style>
+        :root {
+            --bg-color: #030303;
+            --screen-bg: #080808;
+            --card-bg: #0c0c0c;
+            --text-main: #f0f0f0;
+            --text-dim: #444;
+            --accent: #00f2ff;
+            --border-color: #161616;
+            
+            --wire-top: url('wires-top.png');
+            --wire-bottom: url('wires-bottom.png');
+            --wire-left: url('wires-left.png');
+            --wire-right: url('wires-right.png');
+            --glitch-gif: url('glitch.gif');
+        }
+
+        ::selection { background: var(--accent); color: #000; }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+            cursor: crosshair;
+        }
+
+        /* --- ПАРАЛЛАКС И ПРОВОДА --- */
+        .parallax-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        #parallax-front { z-index: 9999; }
+        .wire-layer { position: absolute; left: 0; width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; will-change: transform; transition: opacity 0.4s, filter 0.4s, transform 0.6s; }
+        
+        .wires-top { top: 0; background-position: top center; background-image: var(--wire-top); }
+        .wires-bottom { bottom: 0; background-position: bottom center; background-image: var(--wire-bottom); }
+        .wires-left { left: 0; background-position: center left; background-image: var(--wire-left); opacity: 0.8; }
+        .wires-right { right: 0; background-position: center right; background-image: var(--wire-right); opacity: 0.8; }
+
+        body.overlay-open .wires-top { transform: translateY(-100px); opacity: 0; }
+        body.overlay-open .wires-bottom { transform: translateY(100px); opacity: 0; }
+        body.overlay-open .wires-left, body.overlay-open .wires-right { opacity: 1; filter: drop-shadow(0 0 10px var(--accent)); }
+
+        /* --- МОНИТОР --- */
+        .monitor-frame {
+            width: 92vw; height: 88vh;
+            background: #050505; border-radius: 20px;
+            padding: 10px; box-shadow: 0 0 60px rgba(0,0,0,1);
+            position: relative; z-index: 10; 
+        }
+
+        .screen {
+            width: 100%; height: 100%;
+            background-color: var(--screen-bg);
+            border-radius: 10px; overflow-y: auto; overflow-x: hidden;
+            position: relative;
+            animation: lcdFlicker 0.15s infinite;
+        }
+
+        .screen::before {
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%);
+            background-size: 100% 4px; pointer-events: none; z-index: 100; opacity: 0.4;
+        }
+
+        .screen::after {
+            content: ""; position: absolute; left: 0; width: 100%; height: 2px;
+            background: rgba(0, 242, 255, 0.05);
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
+            z-index: 101; pointer-events: none;
+            animation: scanLine 8s linear infinite;
+        }
+
+        @keyframes scanLine { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes lcdFlicker { 0% { opacity: 0.97; } 50% { opacity: 1; } 100% { opacity: 0.98; } }
+
+        header {
+            padding: 25px 40px; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: rgba(8,8,8,0.95); z-index: 50;
+            backdrop-filter: blur(5px);
+        }
+        .logo { font-size: 1.4rem; font-weight: bold; letter-spacing: 3px; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
+
+        /* Сетка каталога */
+        .catalog { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 2px; background-color: var(--border-color); padding-bottom: 50px; }
+
+        .product-card {
+            background-color: var(--card-bg);
+            display: flex; flex-direction: column; justify-content: flex-end; 
+            position: relative; cursor: crosshair; min-height: 550px; overflow: hidden;
+        }
+
+        .glitch-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: var(--glitch-gif); background-size: cover;
+            background-position: center; opacity: 0; z-index: 30; pointer-events: none;
+        }
+
+        .product-card:hover .glitch-overlay { animation: glitchTransitionLoop 0.4s steps(2) forwards; }
+        @keyframes glitchTransitionLoop { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+
+        .img-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+        .product-image { width: 100%; height: 100%; background-size: cover; background-position: center; position: absolute; filter: grayscale(100%) brightness(0.7); transition: 0.4s; }
+        .image-a { opacity: 1; z-index: 2; }
+        .image-b { opacity: 0; z-index: 1; }
+
+        .product-card:hover .image-a { opacity: 0; }
+        .product-card:hover .image-b { opacity: 1; filter: grayscale(0%) brightness(1.1); }
+
+        .text-overlay { width: 100%; padding: 30px 20px; box-sizing: border-box; background: linear-gradient(to top, rgba(12,12,12,0.95) 0%, rgba(12,12,12,0) 100%); z-index: 10; text-align: center; }
+        .item-name { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; color: #888; transition: 0.3s; }
+        .item-price { font-size: 0.8rem; color: #555; transition: 0.3s; }
+        
+        .product-card:hover .item-name { color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+        .product-card:hover .item-price { color: #fff; }
+
+        .screen::-webkit-scrollbar { width: 4px; }
+        .screen::-webkit-scrollbar-thumb { background: var(--border-color); }
+
+
+        /* --- ОВЕРЛЕЙ ТЕРМИНАЛА --- */
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 2, 2, 0.98); z-index: 5000;
+            display: none; justify-content: center; overflow-y: auto;
+            backdrop-filter: blur(20px);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Анимации появления и исчезновения для Оверлея */
+        body.overlay-open #overlay { opacity: 1; }
+        body.overlay-closing #overlay { animation: overlayFadeOut 0.5s forwards; }
+        @keyframes overlayFadeOut { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+        /* Полоса сканирования */
+        #overlay::after {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: var(--accent); box-shadow: 0 0 20px var(--accent);
+            z-index: 6000; opacity: 0; pointer-events: none;
+        }
+        body.overlay-open #overlay::after { animation: scanLineMove 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        body.overlay-closing #overlay::after { animation: scanLineMoveRev 0.4s linear forwards; }
+        
+        @keyframes scanLineMove { 0% { top: 0; opacity: 1; height: 5px; } 100% { top: 100%; opacity: 0; height: 1px; } }
+        @keyframes scanLineMoveRev { 0% { top: 100%; opacity: 1; } 100% { top: 0; opacity: 0; } }
+
+        .modal {
+            width: 100%; max-width: 1200px; min-height: 100vh;
+            display: flex; flex-direction: column; padding: 60px 20px;
+            opacity: 0; transform: translateY(30px);
+        }
+        
+        body.overlay-open .modal { animation: modalFadeIn 0.5s 0.2s forwards; }
+        body.overlay-closing .modal { animation: modalFadeOut 0.4s forwards; }
+
+        @keyframes modalFadeIn { to { opacity: 1; transform: translateY(0); } }
+        @keyframes modalFadeOut { 
+            0% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1); } 
+            100% { opacity: 0; transform: translateY(-20px) scale(0.98); filter: brightness(0); } 
+        }
+
+        .modal-main { display: flex; gap: 50px; align-items: flex-start; margin-bottom: 80px; }
+        .modal-gallery { width: 55%; position: sticky; top: 60px; }
+        
+        /* Косметика: Сканлайны поверх главного фото */
+        .main-img-wrap { 
+            border: 1px solid var(--border-color); background: #000; aspect-ratio: 1/1; 
+            display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; 
+        }
+        .main-img-wrap::after {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0) 4px);
+            pointer-events: none; z-index: 10;
+        }
+        .main-img-wrap img { width: 100%; height: 100%; object-fit: cover; filter: contrast(1.1) brightness(0.9); transition: 0.3s; }
+
+        .thumb-strip { display: flex; gap: 10px; margin-top: 15px; overflow-x: auto; padding-bottom: 5px; }
+        .t-item { width: 70px; height: 70px; border: 1px solid #222; cursor: pointer; opacity: 0.4; transition: 0.3s; object-fit: cover; filter: grayscale(1); }
+        .t-item:hover, .t-item.active { opacity: 1; border-color: var(--accent); filter: grayscale(0) contrast(1.2); box-shadow: 0 0 10px rgba(0,242,255,0.2); }
+
+        .modal-info { width: 45%; }
+        
+        /* Косметика: Мерцающий курсор в заголовке */
+        .m-title { font-size: 1.8rem; text-transform: uppercase; margin: 0 0 10px 0; letter-spacing: 1px; text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        .m-title::after { content: " █"; animation: blink 1s step-end infinite; color: var(--accent); opacity: 0.7; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .m-price { font-size: 1.2rem; color: #fff; margin-bottom: 30px; text-shadow: 0 0 8px rgba(255,255,255,0.4); }
+
+        /* Блок покупки с эффектами */
+        .purchase-row { display: flex; align-items: center; gap: 15px; margin-bottom: 40px; height: 45px; }
+        .qty-control button { background: none; border: 1px solid #333; color: #fff; width: 40px; height: 40px; cursor: pointer; font-size: 1.2rem; transition: 0.3s; }
+        .qty-control button:hover { border-color: var(--accent); color: var(--accent); text-shadow: 0 0 5px var(--accent); }
+        
+        .btn-add-cart { 
+            flex-grow: 1; background: #fff; color: #000; border: 1px solid #fff; height: 40px; 
+            font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative;
+        }
+        .btn-add-cart:hover { 
+            background: var(--accent); border-color: var(--accent); color: #000; 
+            box-shadow: 0 0 15px var(--accent); letter-spacing: 3px; 
+        }
+
+        .chat-icon { position: relative; border: 1px solid #333; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; }
+        .chat-icon:hover { border-color: #fff; }
+        .chat-icon span { position: absolute; top: -5px; right: -5px; background: #ff0000; color: #fff; font-size: 8px; padding: 2px 4px; border-radius: 50%; box-shadow: 0 0 5px red; }
+
+        .acc-item { border-top: 1px solid #1a1a1a; }
+        .acc-trigger { padding: 20px 0; cursor: pointer; display: flex; justify-content: space-between; font-size: 0.75rem; color: #888; text-transform: uppercase; transition: 0.3s; }
+        .acc-trigger:hover { color: var(--accent); text-shadow: 0 0 5px var(--accent); padding-left: 5px; }
+        .acc-content { max-height: 0; overflow: hidden; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); color: #666; font-size: 0.85rem; line-height: 1.6; padding-bottom: 0; }
+        .acc-item.active .acc-content { max-height: 300px; padding-bottom: 20px; color: #aaa; }
+
+        .related-section { margin-top: 60px; border-top: 1px solid #161616; padding-top: 40px; }
+        .related-title { font-size: 0.8rem; letter-spacing: 2px; margin-bottom: 30px; color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.2); }
+        .related-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .rel-card { text-align: center; cursor: pointer; transition: 0.3s; }
+        .rel-img { height: 200px; background-size: contain; background-repeat: no-repeat; background-position: center; margin-bottom: 15px; filter: brightness(0.5) grayscale(1); transition: 0.4s; border: 1px solid transparent; }
+        .rel-card:hover { transform: translateY(-5px); }
+        .rel-card:hover .rel-img { filter: brightness(1) grayscale(0); border-color: #333; }
+        .rel-card p { font-size: 0.7rem; margin: 5px 0; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+        .rel-card span { font-size: 0.7rem; color: #666; }
+
+        .close-x { position: fixed; top: 40px; right: 40px; cursor: pointer; width: 40px; height: 40px; z-index: 10000; opacity: 0.5; transition: 0.3s; }
+        .close-x:hover { opacity: 1; transform: rotate(90deg) scale(1.1); }
+        .close-x::before, .close-x::after { content: ""; position: absolute; top: 20px; left: 5px; width: 30px; height: 1px; background: #fff; box-shadow: 0 0 5px #fff; }
+        .close-x::before { transform: rotate(45deg); } .close-x::after { transform: rotate(-45deg); }
+
+        .side-decor { position: fixed; top: 50%; transform: translateY(-50%); font-size: 9px; color: #1a1a1a; writing-mode: vertical-rl; text-transform: uppercase; letter-spacing: 4px; pointer-events: none; }
+        .left-decor { left: 40px; } .right-decor { right: 40px; }
+
+        #overlay::-webkit-scrollbar { width: 3px; }
+        #overlay::-webkit-scrollbar-thumb { background: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <div id="parallax-back" class="parallax-container">
+        <div class="wire-layer wires-left"></div>
+        <div class="wire-layer wires-right"></div>
+    </div>
+
+    <div class="monitor-frame">
+        <div class="screen" id="mainScreen">
+            <header>
+                <div class="logo">DIE_YOUNG_01 // TERM</div>
+                <div class="log" style="color:var(--text-dim)">[ STATUS: INVENTORY ACTIVE ]</div>
+            </header>
+
+            <main class="catalog">
+                
+                <div class="product-card" onclick="openTerminal('RIB ZIP LONGSLEEVE black', '7 777 P', ['item1.png', 'item1_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item1.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item1_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">RIB ZIP LONGSLEEVE black</div><div class="item-price">7 777 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('RIB ZIP LONGSLEEVE white', '7 777 P', ['item2.webp', 'item2_alt.webp'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item2.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item2_alt.webp');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">RIB ZIP LONGSLEEVE white</div><div class="item-price">7 777 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('SPIKY TOP', '7 777 P', ['item3.webp', 'item3_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item3.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item3_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">SPIKY TOP</div><div class="item-price">7 777 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('SPIKY BOTTOM', '7 777 P', ['item4.webp', 'item4_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item4.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item4_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">SPIKY BOTTOM</div><div class="item-price">7 777 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('SCOLIOSIS black', '6 666 P', ['item5.webp', 'item5_alt.webp'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item5.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item5_alt.webp');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">SCOLIOSIS black</div><div class="item-price">6 666 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('SCOLIOSIS white', '6 666 P', ['item6.webp', 'item6_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item6.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item6_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">SCOLIOSIS white</div><div class="item-price">6 666 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('DESTROYED HOODIE', '7 777 P', ['item7.webp', 'item7_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item7.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item7_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">DESTROYED HOODIE</div><div class="item-price">7 777 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('DESTROYED TEE', '4 444 P', ['item8.webp', 'item8_alt.webp'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item8.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item8_alt.webp');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">DESTROYED TEE</div><div class="item-price">4 444 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('PIERROT HOODIE', '9 999 P', ['item9.png', 'item9_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item9.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item9_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">PIERROT HOODIE</div><div class="item-price">9 999 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('MELTED GLASSES', '4 444 P', ['item10.png', 'item10_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item10.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item10_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">MELTED GLASSES</div><div class="item-price">4 444 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('KNIGHT JEANS', '12 000 P', ['item11.png', 'item11_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item11.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item11_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">KNIGHT JEANS</div><div class="item-price">12 000 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('KNIGHT SHORTS', '7 777 P', ['item12.png', 'item12_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item12.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item12_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">KNIGHT SHORTS</div><div class="item-price">7 777 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('HAIRY PANTS', '11 000 P', ['item13.png', 'item13_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item13.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item13_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">HAIRY PANTS</div><div class="item-price">11 000 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('KOGTI GLOVES', '4 444 P', ['item14.png', 'item14_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item14.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item14_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">KOGTI GLOVES</div><div class="item-price">4 444 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('PRODUCTIVITY PILLOW', '115 000 P', ['item15.png', 'item15_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item15.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item15_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">PRODUCTIVITY PILLOW</div><div class="item-price">115 000 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('MINI SKIRT hanger', '35 000 P', ['item16.png', 'item16_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item16.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item16_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">MINI SKIRT hanger</div><div class="item-price">35 000 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('TRUSIKI BAG', '7 777 P', ['item17.png', 'item17_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item17.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item17_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">TRUSIKI BAG</div><div class="item-price">7 777 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('ANCIENT SCARF', '3 333 P', ['item18.png', 'item18_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item18.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item18_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">ANCIENT SCARF</div><div class="item-price">3 333 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('CAGE MASK', '4 444 P', ['item19.png', 'item19_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item19.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item19_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">CAGE MASK</div><div class="item-price">4 444 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('F**K OFF mask', '3 333 P', ['item20.png', 'item20_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item20.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item20_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">F**K OFF mask</div><div class="item-price">3 333 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('DONT TALK TO ME mask', '3 333 P', ['item21.png', 'item21_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item21.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item21_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">DONT TALK TO ME mask</div><div class="item-price">3 333 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('MASK basic', '3 333 P', ['item22.png', 'item22_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item22.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item22_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">MASK basic</div><div class="item-price">3 333 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('NABOR 1', '9 999 P', ['item23.png', 'item23_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item23.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item23_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">NABOR 1</div><div class="item-price">9 999 P</div></div>
+                </div>
+
+                <div class="product-card" onclick="openTerminal('NABOR 2', '9 999 P', ['item24.png', 'item24_alt.png'], 'Уникальный дизайн. Ручная работа.')">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item24.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item24_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">NABOR 2</div><div class="item-price">9 999 P</div></div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <div class="close-x" onclick="closeTerminal()"></div>
+        <div class="side-decor left-decor">system_access_granted // data_stream_stable</div>
+        <div class="side-decor right-decor">die_young_archive // catalog_sector_04</div>
+
+        <div class="modal">
+            <div class="modal-main">
+                <div class="modal-gallery">
+                    <div class="main-img-wrap"><img id="m-img" src=""></div>
+                    <div class="thumb-strip" id="m-thumbs">
+                        </div>
+                </div>
+
+                <div class="modal-info">
+                    <h1 class="m-title" id="m-title">TITLE</h1>
+                    <div class="m-price" id="m-price">0 P</div>
+
+                    <div class="purchase-row">
+                        <div class="qty-control"><button onclick="">+</button></div>
+                        <button class="btn-add-cart">ADD TO CART</button>
+                        <div class="chat-icon">💬<span>57</span></div>
+                    </div>
+
+                    <div class="acc-item active" onclick="this.classList.toggle('active')">
+                        <div class="acc-trigger">Описание <span>▼</span></div>
+                        <div class="acc-content" id="m-desc"></div>
+                    </div>
+                    <div class="acc-item" onclick="this.classList.toggle('active')">
+                        <div class="acc-trigger">Доставка <span>▼</span></div>
+                        <div class="acc-content">Срок изготовления 2 недели. Доставка курьерскими службами по СНГ и миру.</div>
+                    </div>
+                    <div class="acc-item" onclick="this.classList.toggle('active')">
+                        <div class="acc-trigger">Рекомендации к стирке <span>▼</span></div>
+                        <div class="acc-content">Каждая вещь — штучный продукт. Рекомендуется бережная ручная стирка в прохладной воде (30°C).</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="related-section">
+                <h2 class="related-title">СМОТРИ ТАКЖЕ</h2>
+                <div class="related-grid">
+                    <div class="rel-card"><div class="rel-img" style="background-image:url('item10.png')"></div><p>MELTED GLASSES</p><span>4 444 P</span></div>
+                    <div class="rel-card"><div class="rel-img" style="background-image:url('item8.webp')"></div><p>DESTROYED TEE</p><span>4 444 P</span></div>
+                    <div class="rel-card"><div class="rel-img" style="background-image:url('item24.png')"></div><p>NABOR 2</p><span>9 999 P</span></div>
+                    <div class="rel-card"><div class="rel-img" style="background-image:url('item23.png')"></div><p>MYSTERY BOX</p><span>15 000 P</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="parallax-front" class="parallax-container">
+        <div class="wire-layer wires-top"></div>
+        <div class="wire-layer wires-bottom"></div>
+    </div>
+
+    <script>
+        function openTerminal(name, price, images, desc) {
+            document.getElementById('m-title').innerText = name;
+            document.getElementById('m-price').innerText = price;
+            document.getElementById('m-desc').innerText = desc;
+            
+            // Основное фото
+            const mainImg = document.getElementById('m-img');
+            mainImg.src = images[0];
+
+            // Генерация миниатюр
+            const thumbContainer = document.getElementById('m-thumbs');
+            thumbContainer.innerHTML = '';
+            images.forEach((src, index) => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.className = 't-item' + (index === 0 ? ' active' : '');
+                img.onclick = function() {
+                    mainImg.src = src;
+                    document.querySelectorAll('.t-item').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                };
+                thumbContainer.appendChild(img);
+            });
+
+            const overlay = document.getElementById('overlay');
+            overlay.style.display = 'flex';
+            
+            // Запускаем анимацию открытия
+            setTimeout(() => { document.body.classList.add('overlay-open'); }, 10);
+        }
+
+        function closeTerminal() {
+            // Запускаем красивую анимацию закрытия (меняем класс)
+            document.body.classList.remove('overlay-open');
+            document.body.classList.add('overlay-closing');
+            
+            // Ждем завершения CSS анимаций (500ms), прячем оверлей и сбрасываем класс
+            setTimeout(() => { 
+                document.getElementById('overlay').style.display = 'none'; 
+                document.body.classList.remove('overlay-closing');
+            }, 500); 
+        }
+
+        // Параллакс проводов
+        document.addEventListener('mousemove', function(e) {
+            const x = (e.clientX / window.innerWidth - 0.5) * 2;
+            const y = (e.clientY / window.innerHeight - 0.5) * 2;
+            
+            const layers = {
+                top: document.querySelector('.wires-top'),
+                bottom: document.querySelector('.wires-bottom'),
+                left: document.querySelector('.wires-left'),
+                right: document.querySelector('.wires-right')
+            };
+
+            if(layers.top) layers.top.style.transform = `translate(${x * 15}px, ${y * 15}px)`;
+            if(layers.bottom) layers.bottom.style.transform = `translate(${x * -10}px, ${y * -10}px)`;
+            if(layers.left) layers.left.style.transform = `translate(${x * 10}px, ${y * -3}px)`;
+            if(layers.right) layers.right.style.transform = `translate(${x * -10}px, ${y * 3}px)`;
+        });
+    </script>
+</body>
+</html>
