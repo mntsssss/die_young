@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIE_YOUNG_01 | RE-ACTIVATED SYSTEM</title>
+    <style>
+        :root {
+            --bg-color: #030303;
+            --screen-bg: #080808;
+            --card-bg: #0c0c0c;
+            --text-main: #f0f0f0;
+            --text-dim: #444;
+            --accent: #00f2ff;
+            --border-color: #161616;
+            
+            --wire-top: url('wires-top.png');
+            --wire-bottom: url('wires-bottom.png');
+            --wire-left: url('wires-left.png');
+            --wire-right: url('wires-right.png');
+            --glitch-gif: url('glitch.gif');
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+
+
+        .parallax-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; transform: scale(1.05); 
+        }
+
+
+        #parallax-back { z-index: 1; }
+
+        #parallax-front { z-index: 9999; }
+
+        .wire-layer {
+            position: absolute; left: 0; width: 100%; height: 100%;
+            background-size: contain; background-repeat: no-repeat;
+            will-change: transform;
+        }
+
+        .wires-top { top: 0; background-position: top center; background-image: var(--wire-top); }
+        .wires-bottom { bottom: 0; background-position: bottom center; background-image: var(--wire-bottom); }
+        .wires-left { left: 0; background-position: center left; background-image: var(--wire-left); opacity: 0.8; }
+        .wires-right { right: 0; background-position: center right; background-image: var(--wire-right); opacity: 0.8; }
+
+        .monitor-frame {
+            width: 92vw; height: 88vh;
+            background: #050505; border-radius: 20px;
+            padding: 10px; box-shadow: 0 0 60px rgba(0,0,0,1);
+            position: relative; 
+            z-index: 10; 
+        }
+
+        .screen {
+            width: 100%; height: 100%;
+            background-color: var(--screen-bg);
+            border-radius: 10px; overflow-y: auto; overflow-x: hidden;
+            position: relative;
+            animation: lcdFlicker 0.15s infinite;
+        }
+
+        .screen::before {
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%);
+            background-size: 100% 4px; pointer-events: none; z-index: 100; opacity: 0.4;
+        }
+
+        .screen::after {
+            content: ""; position: absolute; left: 0; width: 100%; height: 2px;
+            background: rgba(0, 242, 255, 0.05);
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
+            z-index: 101; pointer-events: none;
+            animation: scanLine 8s linear infinite;
+        }
+
+        @keyframes scanLine { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes lcdFlicker { 0% { opacity: 0.97; } 50% { opacity: 1; } 100% { opacity: 0.98; } }
+
+        header {
+            padding: 25px 40px; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: rgba(8,8,8,0.95); z-index: 50;
+            backdrop-filter: blur(5px);
+        }
+        .logo { font-size: 1.4rem; font-weight: bold; letter-spacing: 3px; }
+
+        .catalog {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 2px; background-color: var(--border-color);
+            padding-bottom: 50px;
+        }
+
+        .product-card {
+            background-color: var(--card-bg);
+            padding: 0; display: flex; flex-direction: column; 
+            justify-content: flex-end; position: relative; cursor: crosshair;
+            min-height: 480px; overflow: hidden;
+        }
+
+        .glitch-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: var(--glitch-gif); background-size: cover;
+            background-position: center; opacity: 0; z-index: 30; pointer-events: none;
+        }
+
+        .product-card:hover .glitch-overlay { animation: glitchTransitionLoop 0.4s steps(2) forwards; }
+        @keyframes glitchTransitionLoop { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+
+        .img-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+
+        .product-image {
+            width: 100%; height: 100%; background-size: cover;
+            background-position: center; background-repeat: no-repeat;
+            position: absolute; top: 0; left: 0;
+            filter: grayscale(100%) brightness(0.7);
+            transition: opacity 0s;
+        }
+
+        .image-a { opacity: 1; z-index: 2; }
+        .image-b { opacity: 0; z-index: 1; }
+
+        .product-card:hover .image-a { animation: hideImageA 0s 0.2s forwards; }
+        .product-card:hover .image-b { 
+            animation: showImageB 0s 0.2s forwards; 
+            filter: grayscale(0%) brightness(1.1);
+        }
+
+        @keyframes hideImageA { to { opacity: 0; z-index: 1; } }
+        @keyframes showImageB { to { opacity: 1; z-index: 2; } }
+
+        .text-overlay {
+            width: 100%; padding: 30px 20px; box-sizing: border-box;
+            background: linear-gradient(to top, rgba(12,12,12,0.95) 0%, rgba(12,12,12,0) 100%);
+            z-index: 10; text-align: center;
+        }
+
+        .item-name { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .item-price { font-size: 0.8rem; color: var(--text-dim); }
+
+        .screen::-webkit-scrollbar { width: 4px; }
+        .screen::-webkit-scrollbar-thumb { background: var(--border-color); }
+    </style>
+</head>
+<body>
+
+    <div id="parallax-back" class="parallax-container">
+        <div class="wire-layer wires-left"></div>
+        <div class="wire-layer wires-right"></div>
+    </div>
+
+    <div class="monitor-frame">
+        <div class="screen">
+            <header>
+                <div class="logo">DIE_YOUNG_01 // TERM</div>
+                <div class="log" style="color:var(--text-dim)">[ STATUS: INVENTORY ACTIVE ]</div>
+            </header>
+
+            <main class="catalog">
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item1.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item1_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">RIB ZIP LONGSLEEVE black</div><div class="item-price">7 777 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item2.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item2_alt.webp');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">RIB ZIP LONGSLEEVE white</div><div class="item-price">7 777 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item3.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item3_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">SPIKY TOP</div><div class="item-price">7 777 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item4.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item4_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">SPIKY BOTTOM</div><div class="item-price">7 777 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item5.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item5_alt.webp');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">SCOLIOSIS black</div><div class="item-price">6 666 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item6.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item6_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">SCOLIOSIS white</div><div class="item-price">6 666 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item7.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item7_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">DESTROYED HOODIE</div><div class="item-price">7 777 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item8.webp');"></div>
+                        <div class="product-image image-b" style="background-image: url('item8_alt.webp');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">DESTROYED TEE</div><div class="item-price">4 444 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item9.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item9_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">PIERROT HOODIE</div><div class="item-price">9 999 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item10.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item10_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">MELTED GLASSES</div><div class="item-price">4 444 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item11.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item11_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">KNIGHT JEANS</div><div class="item-price">12 000 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item12.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item12_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">KNIGHT SHORTS</div><div class="item-price">7 777 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item13.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item13_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">HAIRY PANTS</div><div class="item-price">11 000 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item14.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item14_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">KOGTI GLOVES</div><div class="item-price">4 444 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item15.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item15_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">PRODUCTIVITY PILLOW</div><div class="item-price">115 000 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item16.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item16_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">MINI SKIRT hanger</div><div class="item-price">35 000 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item17.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item17_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">TRUSIKI BAG</div><div class="item-price">7 777 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item18.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item18_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">ANCIENT SCARF</div><div class="item-price">3 333 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item19.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item19_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">CAGE MASK</div><div class="item-price">4 444 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item20.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item20_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">F**K OFF mask</div><div class="item-price">3 333 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item21.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item21_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">DONT TALK TO ME mask</div><div class="item-price">3 333 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item22.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item22_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">MASK basic</div><div class="item-price">3 333 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item23.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item23_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">NABOR 1</div><div class="item-price">9 999 P</div></div>
+                </div>
+                <div class="product-card">
+                    <div class="glitch-overlay"></div>
+                    <div class="img-container">
+                        <div class="product-image image-a" style="background-image: url('item24.png');"></div>
+                        <div class="product-image image-b" style="background-image: url('item24_alt.png');"></div>
+                    </div>
+                    <div class="text-overlay"><div class="item-name">NABOR 2</div><div class="item-price">9 999 P</div></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="parallax-front" class="parallax-container">
+        <div class="wire-layer wires-top"></div>
+        <div class="wire-layer wires-bottom"></div>
+    </div>
+
+    <script>
+        document.addEventListener('mousemove', function(e) {
+            const x = (e.clientX / window.innerWidth - 0.5) * 2;
+            const y = (e.clientY / window.innerHeight - 0.5) * 2;
+            
+            const layers = {
+                top: document.querySelector('.wires-top'),
+                bottom: document.querySelector('.wires-bottom'),
+                left: document.querySelector('.wires-left'),
+                right: document.querySelector('.wires-right')
+            };
+
+            if(layers.top) layers.top.style.transform = `translate(${x * 15}px, ${y * 15}px)`;
+            if(layers.bottom) layers.bottom.style.transform = `translate(${x * -10}px, ${y * -10}px)`;
+            
+            // Боковые провода двигаются меньше (эффект глубины)
+            if(layers.left) layers.left.style.transform = `translate(${x * 10}px, ${y * -3}px)`;
+            if(layers.right) layers.right.style.transform = `translate(${x * -10}px, ${y * 3}px)`;
+        });
+    </script>
+</body>
+</html>
